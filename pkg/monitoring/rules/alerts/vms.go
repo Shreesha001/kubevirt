@@ -262,4 +262,112 @@ var vmsAlerts = []promv1.Rule{
 			operatorHealthImpactLabelKey: "none",
 		},
 	},
+	// ── Network packet-drop alerts ───────────────────────────────────────────────
+	// Sustained packet drops indicate network congestion, an overwhelmed vNIC
+	// buffer, or a CPU-starved VM that cannot drain its receive queue fast enough.
+	// The alert fires only when the drop-to-total-packet ratio exceeds the
+	// threshold AND the interface is actively handling traffic (total packets > 0),
+	// preventing false positives on idle interfaces.
+	{
+		Alert: "VMIHighNetworkPacketDropRate",
+		Expr: intstr.FromString(
+			"sum by (name, namespace, interface) (" +
+				"rate(kubevirt_vmi_network_receive_packets_dropped_total[5m]) + " +
+				"rate(kubevirt_vmi_network_transmit_packets_dropped_total[5m])" +
+				") / sum by (name, namespace, interface) (" +
+				"rate(kubevirt_vmi_network_receive_packets_total[5m]) + " +
+				"rate(kubevirt_vmi_network_transmit_packets_total[5m])" +
+				") > 0.01",
+		),
+		For: ptr.To(promv1.Duration("5m")),
+		Annotations: map[string]string{
+			summaryAnnotationKey: "High network packet drop rate detected on a VirtualMachineInstance.",
+			descriptionAnnotationKey: "VirtualMachineInstance {{ $labels.name }} in namespace {{ $labels.namespace }} " +
+				"has a combined rx/tx packet drop ratio of {{ $value | humanizePercentage }} " +
+				"on interface {{ $labels.interface }} for more than 5 minutes. " +
+				"This may indicate network congestion, an overwhelmed vNIC buffer, or " +
+				"a CPU-starved guest that cannot drain its receive queue.",
+		},
+		Labels: map[string]string{
+			severityAlertLabelKey:        "warning",
+			operatorHealthImpactLabelKey: "none",
+		},
+	},
+	{
+		Alert: "VMIHighNetworkPacketDropRate",
+		Expr: intstr.FromString(
+			"sum by (name, namespace, interface) (" +
+				"rate(kubevirt_vmi_network_receive_packets_dropped_total[5m]) + " +
+				"rate(kubevirt_vmi_network_transmit_packets_dropped_total[5m])" +
+				") / sum by (name, namespace, interface) (" +
+				"rate(kubevirt_vmi_network_receive_packets_total[5m]) + " +
+				"rate(kubevirt_vmi_network_transmit_packets_total[5m])" +
+				") > 0.05",
+		),
+		Annotations: map[string]string{
+			summaryAnnotationKey: "Critical network packet drop rate detected on a VirtualMachineInstance.",
+			descriptionAnnotationKey: "VirtualMachineInstance {{ $labels.name }} in namespace {{ $labels.namespace }} " +
+				"has a combined rx/tx packet drop ratio of {{ $value | humanizePercentage }} " +
+				"on interface {{ $labels.interface }}. " +
+				"Network performance is severely degraded and immediate investigation is required.",
+		},
+		Labels: map[string]string{
+			severityAlertLabelKey:        "critical",
+			operatorHealthImpactLabelKey: "none",
+		},
+	},
+	// ── Network error-rate alerts ────────────────────────────────────────────────
+	// Network errors (as opposed to drops) usually point to a hardware or driver
+	// problem: physical link errors for SR-IOV, virtio ring corruption, or a
+	// faulty virtual switch configuration.  Even a small, sustained error rate
+	// warrants investigation because errors are rarely benign in virtual networks.
+	{
+		Alert: "VMIHighNetworkErrorRate",
+		Expr: intstr.FromString(
+			"sum by (name, namespace, interface) (" +
+				"rate(kubevirt_vmi_network_receive_errors_total[5m]) + " +
+				"rate(kubevirt_vmi_network_transmit_errors_total[5m])" +
+				") / sum by (name, namespace, interface) (" +
+				"rate(kubevirt_vmi_network_receive_packets_total[5m]) + " +
+				"rate(kubevirt_vmi_network_transmit_packets_total[5m])" +
+				") > 0.001",
+		),
+		For: ptr.To(promv1.Duration("5m")),
+		Annotations: map[string]string{
+			summaryAnnotationKey: "High network error rate detected on a VirtualMachineInstance.",
+			descriptionAnnotationKey: "VirtualMachineInstance {{ $labels.name }} in namespace {{ $labels.namespace }} " +
+				"has a combined rx/tx network error ratio of {{ $value | humanizePercentage }} " +
+				"on interface {{ $labels.interface }} for more than 5 minutes. " +
+				"Network errors may indicate a driver issue, a misconfigured virtual switch, " +
+				"or hardware-level faults on SR-IOV interfaces.",
+		},
+		Labels: map[string]string{
+			severityAlertLabelKey:        "warning",
+			operatorHealthImpactLabelKey: "none",
+		},
+	},
+	{
+		Alert: "VMIHighNetworkErrorRate",
+		Expr: intstr.FromString(
+			"sum by (name, namespace, interface) (" +
+				"rate(kubevirt_vmi_network_receive_errors_total[5m]) + " +
+				"rate(kubevirt_vmi_network_transmit_errors_total[5m])" +
+				") / sum by (name, namespace, interface) (" +
+				"rate(kubevirt_vmi_network_receive_packets_total[5m]) + " +
+				"rate(kubevirt_vmi_network_transmit_packets_total[5m])" +
+				") > 0.01",
+		),
+		Annotations: map[string]string{
+			summaryAnnotationKey: "Critical network error rate detected on a VirtualMachineInstance.",
+			descriptionAnnotationKey: "VirtualMachineInstance {{ $labels.name }} in namespace {{ $labels.namespace }} " +
+				"has a combined rx/tx network error ratio of {{ $value | humanizePercentage }} " +
+				"on interface {{ $labels.interface }}. " +
+				"The high error rate is likely causing significant packet loss and connection " +
+				"instability. Immediate investigation of the network stack is required.",
+		},
+		Labels: map[string]string{
+			severityAlertLabelKey:        "critical",
+			operatorHealthImpactLabelKey: "none",
+		},
+	},
 }
