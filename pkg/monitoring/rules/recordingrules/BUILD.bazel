@@ -5,6 +5,7 @@ go_library(
     srcs = [
         "api.go",
         "deprecated_recordingrules.go",
+        "network.go",
         "nodes.go",
         "operator.go",
         "recordingrules.go",
